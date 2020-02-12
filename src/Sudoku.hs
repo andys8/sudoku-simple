@@ -2,8 +2,8 @@
 module Sudoku where
 
 import           Data.Char (isDigit)
-import           Data.IntMap (IntMap)
-import qualified Data.IntMap as IM
+import           Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IM
 import qualified Data.IntSet as IS
 import           Data.Maybe
 
