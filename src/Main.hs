@@ -1,5 +1,6 @@
 module Main where
 
+import qualified Data.Text.IO as T
 import Control.Monad
 import Sudoku
 import System.Environment
@@ -16,9 +17,9 @@ run = do
   if done
     then return ()
     else do
-      line <- getLine
+      line <- T.getLine
       case parseSudoku line of
-        Just s | (solution:_) <- solutions s -> putStrLn (formatBoardOneLine solution) >> run
+        Just s | (solution:_) <- solutions s -> T.putStrLn (formatBoardOneLine solution) >> run
         _ -> run
 
 printHelp :: IO ()

@@ -1,7 +1,8 @@
-{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE MultiWayIf, OverloadedStrings #-}
 module Sudoku where
 
 import           Data.Char (isDigit)
+import qualified Data.Text as T
 import           Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
@@ -10,29 +11,29 @@ import           Data.Maybe
 newtype Sudoku = Sudoku (IntMap Int)
                  deriving (Show, Eq)
 
-exampleSudoku :: String
+exampleSudoku :: T.Text
 exampleSudoku = "1...5.8.3..817..544.2..36.....534...36.7..............2....7......685.7.8...4...."
 
 printBoard :: Sudoku -> IO ()
-printBoard = putStrLn . formatBoard
+printBoard = putStrLn . T.unpack . formatBoard
 
 -- | Render to a string as given by https://qqwing.com/generate.html
-formatBoardOneLine :: Sudoku -> String
-formatBoardOneLine (Sudoku mp) = concat $ do
+formatBoardOneLine :: Sudoku -> T.Text
+formatBoardOneLine (Sudoku mp) = T.concat $ do
   i <- [0 .. 80]
-  return $ fromMaybe "." $ fmap show $ IM.lookup i mp
+  return $ maybe "." (T.pack . show) (IM.lookup i mp)
 
 -- | Render to a nice human-readable formulation
-formatBoard :: Sudoku -> String
+formatBoard :: Sudoku -> T.Text
 formatBoard (Sudoku mp) = go [0 .. 80]
   where
     go [] = ""
     go (n:ns) =
-      let val = fromMaybe "." $ fmap show $ IM.lookup n mp
-          rest = val ++ go ns
-      in if | n > 0 && n `mod` 27 == 0 -> "\n---+---+---\n" ++ rest
-            | n > 0 && n `mod` 9 == 0 ->"\n" ++ rest
-            | n > 0 && n `mod` 3 == 0 -> "|" ++ rest
+      let val = maybe "." (T.pack . show) (IM.lookup n mp)
+          rest = val <> go ns
+      in if | n > 0 && n `mod` 27 == 0 -> "\n---+---+---\n" <> rest
+            | n > 0 && n `mod` 9 == 0 ->"\n" <> rest
+            | n > 0 && n `mod` 3 == 0 -> "|" <> rest
             | otherwise -> rest
 
 -- | Points on the sudoku field that don't have a number yet
@@ -72,9 +73,9 @@ possibleValues sudoku@(Sudoku mp) field
 isSolved :: Sudoku -> Bool
 isSolved s = rowsOK && columnsOK && boxesOK
   where
-    rowsOK = all (== allNumbers) $ (IS.fromList  . valuesInRow s) <$> [0..8]
-    columnsOK = all (== allNumbers) $ (IS.fromList  . valuesInColumn s) <$> [0..8]
-    boxesOK = all (== allNumbers) $ (IS.fromList . valuesInBox s) <$> boxTopLeftPoints
+    rowsOK = all (== allNumbers) $ IS.fromList  . valuesInRow s <$> [0..8]
+    columnsOK = all (== allNumbers) $ IS.fromList  . valuesInColumn s <$> [0..8]
+    boxesOK = all (== allNumbers) $ IS.fromList . valuesInBox s <$> boxTopLeftPoints
     boxTopLeftPoints = concat $ take 3 $ iterate (fmap (+27)) [0, 3, 6]
     allNumbers = IS.fromList [1..9]
 
@@ -86,33 +87,33 @@ valuesInBox (Sudoku mp) pos = do
   row <- [(currentRow `div` 3) * 3 .. (currentRow `div` 3) * 3 + 2]
   col <- [(currentCol `div` 3) * 3 .. (currentCol `div` 3) * 3 + 2]
   let k = row * 9 + col
-  maybe [] (:[]) (IM.lookup k mp)
+  maybeToList (IM.lookup k mp)
 
 -- | Values in the same row as the given position
 valuesInRow :: Sudoku -> Int -> [Int]
 valuesInRow (Sudoku mp) pos = do
   let rowStart = pos - (pos `mod` 9)
   k <- [rowStart .. rowStart + 8]
-  maybe [] (:[]) (IM.lookup k mp)
+  maybeToList (IM.lookup k mp)
 
 -- | Values in the same column as the given position
 valuesInColumn :: Sudoku -> Int -> [Int]
 valuesInColumn (Sudoku mp) pos = do
   row <- [0 .. 8]
   let k = (row * 9) + (pos `mod` 9)
-  maybe [] (:[]) (IM.lookup k mp)
+  maybeToList (IM.lookup k mp)
 
 -- | Parse a one line sudoku as output by: https://qqwing.com/generate.html
-parseSudoku :: String -> Maybe Sudoku
+parseSudoku :: T.Text -> Maybe Sudoku
 parseSudoku xs
-  | length xs /= 81 || any (not . validChar) xs = Nothing
+  | T.length xs /= 81 || any (not . validChar) (T.unpack xs) = Nothing
   | otherwise =
     Just
     $ Sudoku
     $ IM.fromList
     $ fmap (fmap readInt)
     $ filter ((/= '.') . snd)
-    $ zip [(0 :: Int) ..] xs
+    $ zip [(0 :: Int) ..] (T.unpack xs)
   where
     validChar c = isDigit c || c == '.'
     readInt c = read [c]
